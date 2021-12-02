@@ -65,7 +65,7 @@ def get_price(market, ticker):
 
 
 def get_amount_to_buy(user, market, ticker):
-    return math.floor(get_balance(user) / get_price(market, ticker))
+    return math.ceil(get_balance(user) / get_price(market, ticker))
 
 
 if __name__ == "__main__":
