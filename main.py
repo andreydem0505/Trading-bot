@@ -7,6 +7,7 @@ from kucoin.client import Trade
 from kucoin.client import User
 import math
 import os
+from requests.exceptions import ReadTimeout
 
 
 class KuCoin:
@@ -45,11 +46,17 @@ class Notificator:
     def __init__(self, sender):
         self.sender = sender
 
+    def start(self):
+        self.sender.send("Start working", "I have started working for you.")
+
     def not_enough_balance(self, ticker):
         self.sender.send("Couldn't buy", f"I wanted to buy {ticker} but there are not enough USDT on your balance.")
 
     def bought(self, ticker):
         self.sender.send(f'{ticker} was bought', f"I've bought {ticker}.")
+
+    def exception(self, exception):
+        self.sender.send("Error", exception)
 
 
 def get_tickers(market):
@@ -64,29 +71,31 @@ def get_price(market, ticker):
     return float(market.get_ticker(ticker)['price'])
 
 
-def get_amount_to_buy(user, market, ticker):
-    return math.ceil(get_balance(user) / get_price(market, ticker))
-
-
 if __name__ == "__main__":
     kuCoin = KuCoin()
 
     email_sender = EmailSender()
     notificator = Notificator(email_sender)
+    notificator.start()
 
     latest_tickers = get_tickers(kuCoin.market)
 
     while True:
-        current_tickers = get_tickers(kuCoin.market)
-        difference = current_tickers - latest_tickers
+        try:
+            current_tickers = get_tickers(kuCoin.market)
+            difference = current_tickers - latest_tickers
 
-        if len(difference) > 0:
-            pair = difference.pop()
+            if len(difference) > 0:
+                pair = difference.pop()
 
-            if get_balance(kuCoin.user) > 1:
-                kuCoin.client.create_market_order(pair, 'buy', size=get_amount_to_buy(kuCoin.user, kuCoin.market, pair))
-                notificator.bought(pair)
-            else:
-                notificator.not_enough_balance(pair)
+                if get_balance(kuCoin.user) >= 1:
+                    kuCoin.client.create_market_order(pair, 'buy', funds=math.floor(get_balance(kuCoin.user)))
+                    notificator.bought(pair)
+                else:
+                    notificator.not_enough_balance(pair)
 
-        latest_tickers = current_tickers
+            latest_tickers = current_tickers
+        except ReadTimeout:
+            continue
+        except Exception as e:
+            notificator.exception(e)
