@@ -56,7 +56,7 @@ class Notificator:
         self.sender.send(f'{ticker} was bought', f"I've bought {ticker}.")
 
     def exception(self, exception):
-        self.sender.send("Error", exception)
+        self.sender.send("Error", str(exception))
 
 
 def get_tickers(market):
