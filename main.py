@@ -1,5 +1,6 @@
 import smtplib
 import ssl
+from time import sleep
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from kucoin.client import Market
@@ -96,6 +97,7 @@ if __name__ == "__main__":
 
             latest_tickers = current_tickers
         except ReadTimeout:
+            sleep(10)
             continue
         except Exception as e:
             notificator.exception(e)
