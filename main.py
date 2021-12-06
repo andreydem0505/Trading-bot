@@ -11,6 +11,9 @@ import os
 from requests.exceptions import ReadTimeout
 
 
+MAIN_CURRENCY = 'USDT'
+
+
 class KuCoin:
     def __init__(self):
         key = os.getenv("API_KEY")
@@ -21,7 +24,12 @@ class KuCoin:
         self.market = Market()
 
 
-class EmailSender:
+class Sender:
+    def send(self, subject, text):
+        pass
+
+
+class EmailSender(Sender):
     def __init__(self):
         self.port = 587
         self.smtp_server = "smtp.gmail.com"
@@ -51,7 +59,8 @@ class Notificator:
         self.sender.send("Start working", "I have started working for you.")
 
     def not_enough_balance(self, ticker):
-        self.sender.send("Couldn't buy", f"I wanted to buy {ticker} but there are not enough USDT on your balance.")
+        self.sender.send("Couldn't buy", f"I wanted to buy {ticker} but there are not enough {MAIN_CURRENCY} on your "
+                                         f"balance.")
 
     def bought(self, ticker):
         self.sender.send(f'{ticker} was bought', f"I've bought {ticker}.")
@@ -60,17 +69,16 @@ class Notificator:
         self.sender.send("Error", str(exception))
 
 
+def is_trading_symbol(data):
+    return data['quoteCurrency'] == MAIN_CURRENCY and data['enableTrading']
+
+
 def get_symbols(market):
-    filtered_list = filter(lambda data: data['symbol'].endswith('-USDT') and data['enableTrading'], market.get_symbol_list())
-    return set(map(lambda data: data['baseCurrency'], filtered_list))
+    return set(map(lambda data: data['baseCurrency'], filter(is_trading_symbol, market.get_symbol_list())))
 
 
 def get_balance(user):
-    return float(user.get_account_list(currency='USDT', account_type='trade')[0]['balance'])
-
-
-def get_price(market, ticker):
-    return float(market.get_ticker(ticker)['price'])
+    return float(user.get_account_list(currency=MAIN_CURRENCY, account_type='trade')[0]['balance'])
 
 
 if __name__ == "__main__":
@@ -91,7 +99,8 @@ if __name__ == "__main__":
                 symbol = difference.pop()
 
                 if get_balance(kuCoin.user) >= 1:
-                    kuCoin.client.create_market_order(f'{symbol}-USDT', 'buy', funds=math.floor(get_balance(kuCoin.user)))
+                    pair = f'{symbol}-{MAIN_CURRENCY}'
+                    kuCoin.client.create_market_order(pair, 'buy', funds=math.floor(get_balance(kuCoin.user)))
                     notificator.bought(symbol)
                 else:
                     notificator.not_enough_balance(symbol)
