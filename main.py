@@ -60,8 +60,9 @@ class Notificator:
         self.sender.send("Error", str(exception))
 
 
-def get_tickers(market):
-    return set(map(lambda data: data['symbol'], filter(lambda data: data['symbol'].endswith('-USDT'), market.get_all_tickers()['ticker'])))
+def get_symbols(market):
+    filtered_list = filter(lambda data: data['symbol'].endswith('-USDT') and data['enableTrading'], market.get_symbol_list())
+    return set(map(lambda data: data['baseCurrency'], filtered_list))
 
 
 def get_balance(user):
@@ -79,23 +80,23 @@ if __name__ == "__main__":
     notificator = Notificator(email_sender)
     notificator.start()
 
-    latest_tickers = get_tickers(kuCoin.market)
+    latest_symbols = get_symbols(kuCoin.market)
 
     while True:
         try:
-            current_tickers = get_tickers(kuCoin.market)
-            difference = current_tickers - latest_tickers
+            current_symbols = get_symbols(kuCoin.market)
+            difference = current_symbols - latest_symbols
 
             if len(difference) > 0:
-                pair = difference.pop()
+                symbol = difference.pop()
 
                 if get_balance(kuCoin.user) >= 1:
-                    kuCoin.client.create_market_order(pair, 'buy', funds=math.floor(get_balance(kuCoin.user)))
-                    notificator.bought(pair)
+                    kuCoin.client.create_market_order(f'{symbol}-USDT', 'buy', funds=math.floor(get_balance(kuCoin.user)))
+                    notificator.bought(symbol)
                 else:
-                    notificator.not_enough_balance(pair)
+                    notificator.not_enough_balance(symbol)
 
-            latest_tickers = current_tickers
+            latest_symbols = current_symbols
         except ReadTimeout:
             sleep(10)
             continue
