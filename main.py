@@ -70,7 +70,7 @@ class Notificator:
 
 
 def is_trading_symbol(data):
-    return data['quoteCurrency'] == MAIN_CURRENCY and data['enableTrading']
+    return data['quoteCurrency'] == MAIN_CURRENCY and float(data['quoteIncrement']) > 0
 
 
 def get_symbols(market):
@@ -91,10 +91,10 @@ if __name__ == "__main__":
     latest_symbols = get_symbols(kuCoin.market)
 
     while True:
-        try:
-            current_symbols = get_symbols(kuCoin.market)
-            difference = current_symbols - latest_symbols
+        current_symbols = get_symbols(kuCoin.market)
+        difference = current_symbols - latest_symbols
 
+        try:
             if len(difference) > 0:
                 symbol = difference.pop()
 
@@ -105,10 +105,10 @@ if __name__ == "__main__":
                 else:
                     notificator.not_enough_balance(symbol)
 
-            latest_symbols = current_symbols
         except ReadTimeout:
             sleep(10)
             continue
         except Exception as e:
             notificator.exception(e)
-            continue
+
+        latest_symbols = current_symbols
