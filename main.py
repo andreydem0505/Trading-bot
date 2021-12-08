@@ -3,12 +3,14 @@ import ssl
 from time import sleep
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from typing import Union
+
 from kucoin.client import Market
 from kucoin.client import Trade
 from kucoin.client import User
 import math
 import os
-from requests.exceptions import ReadTimeout
+from requests.exceptions import ReadTimeout, ConnectionError
 
 
 MAIN_CURRENCY = 'USDT'
@@ -66,11 +68,11 @@ class Notificator:
         self.sender.send(f'{ticker} was bought', f"I've bought {ticker}.")
 
     def exception(self, exception):
-        self.sender.send("Error", str(exception))
+        self.sender.send("Error", f'{str(exception)}\n{kuCoin.market.get_symbol_list()}')
 
 
 def is_trading_symbol(data):
-    return data['quoteCurrency'] == MAIN_CURRENCY and float(data['quoteIncrement']) > 0
+    return data['quoteCurrency'] == MAIN_CURRENCY and float(data['baseMinSize']) > 0
 
 
 def get_symbols(market):
@@ -105,7 +107,7 @@ if __name__ == "__main__":
                 else:
                     notificator.not_enough_balance(symbol)
 
-        except ReadTimeout:
+        except Union[ReadTimeout, ConnectionError]:
             sleep(10)
             continue
         except Exception as e:
