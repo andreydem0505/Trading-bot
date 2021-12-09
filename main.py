@@ -3,14 +3,11 @@ import ssl
 from time import sleep
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from typing import Union
-
 from kucoin.client import Market
 from kucoin.client import Trade
 from kucoin.client import User
 import math
 import os
-from requests.exceptions import ReadTimeout, ConnectionError
 
 
 MAIN_CURRENCY = 'USDT'
@@ -42,7 +39,7 @@ class EmailSender(Sender):
     def send(self, subject, text):
         message = MIMEMultipart("alternative")
         message["Subject"] = subject
-        message["From"] = "Trade bot"
+        message["From"] = "Trading bot"
         text = text
         message.attach(MIMEText(text, "plain"))
 
@@ -68,11 +65,11 @@ class Notificator:
         self.sender.send(f'{ticker} was bought', f"I've bought {ticker}.")
 
     def exception(self, exception):
-        self.sender.send("Error", f'{str(exception)}\n{kuCoin.market.get_symbol_list()}')
+        self.sender.send("Error", str(exception))
 
 
 def is_trading_symbol(data):
-    return data['quoteCurrency'] == MAIN_CURRENCY and float(data['baseMinSize']) > 0
+    return data['quoteCurrency'] == MAIN_CURRENCY and data['enableTrading']
 
 
 def get_symbols(market):
@@ -81,6 +78,15 @@ def get_symbols(market):
 
 def get_balance(user):
     return float(user.get_account_list(currency=MAIN_CURRENCY, account_type='trade')[0]['balance'])
+
+
+def buy(client, user, ticker):
+    while True:
+        try:
+            client.create_market_order(ticker, 'buy', funds=math.floor(get_balance(user)))
+        except Exception:
+            continue
+    notificator.bought(symbol)
 
 
 if __name__ == "__main__":
@@ -102,12 +108,12 @@ if __name__ == "__main__":
 
                 if get_balance(kuCoin.user) >= 1:
                     pair = f'{symbol}-{MAIN_CURRENCY}'
-                    kuCoin.client.create_market_order(pair, 'buy', funds=math.floor(get_balance(kuCoin.user)))
-                    notificator.bought(symbol)
+                    print(pair)
+                    buy(kuCoin.client, kuCoin.user, pair)
                 else:
                     notificator.not_enough_balance(symbol)
 
-        except Union[ReadTimeout, ConnectionError]:
+        except IOError:
             sleep(10)
             continue
         except Exception as e:
