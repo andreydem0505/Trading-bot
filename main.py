@@ -67,6 +67,9 @@ class Notificator:
     def exception(self, exception):
         self.sender.send("Error", str(exception))
 
+    def new_ticker(self, ticker):
+        self.sender.send("New ticker", f"{ticker} was added to KuCoin")
+
 
 def is_trading_symbol(data):
     return data['quoteCurrency'] == MAIN_CURRENCY and data['enableTrading']
@@ -99,24 +102,22 @@ if __name__ == "__main__":
     latest_symbols = get_symbols(kuCoin.market)
 
     while True:
-        current_symbols = get_symbols(kuCoin.market)
-        difference = current_symbols - latest_symbols
-
         try:
+            current_symbols = get_symbols(kuCoin.market)
+            difference = current_symbols - latest_symbols
+
             if len(difference) > 0:
                 symbol = difference.pop()
+                notificator.new_ticker(symbol)
 
                 if get_balance(kuCoin.user) >= 1:
                     pair = f'{symbol}-{MAIN_CURRENCY}'
-                    print(pair)
                     buy(kuCoin.client, kuCoin.user, pair)
                 else:
                     notificator.not_enough_balance(symbol)
 
+            latest_symbols = current_symbols
         except IOError:
-            sleep(10)
             continue
         except Exception as e:
             notificator.exception(e)
-
-        latest_symbols = current_symbols
